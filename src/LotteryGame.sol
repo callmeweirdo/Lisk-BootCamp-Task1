@@ -137,6 +137,76 @@ contract LotteryGame {
      * @return Array of previous winner addresses
      */
 
-    function getPreviousWinners() external view returns (addre)
+    function getPreviousWinners() external view returns (address[] memory){
+        return previousWinners;
+    }
+    /**
+     * @dev Emergency withdrawal function for owner
+     * @notice Only used if contract gets stuck
+     */
 
+    function emergencyWithdrawal() external onlyOwner {
+        uint256 balance = address(this).balance;
+        payable(owner).transfer(balance);
+        emit EmergencyWithrawal(owner, balance);
+    }
+
+    // ================= Internal Function ==================
+    /**
+     * @dev Start a new game round
+     */
+
+    function _startNewRound() internal {
+        isDistributionPending = false;
+        emit NewRoundStarted(currentRound);
+    }
+
+    /**
+     * @dev Reset game state
+     */
+
+    function _resetGame() internal {
+        for(uint256 i = 0; i < registeredPlayers.length; i++){
+            delete players[registeredPlayers[i]];
+        }
+
+        delete registeredPlayers;
+        delete currentWinners;
+        prizePool = 0;
+    }
+
+    /**
+     * @dev Generate pseudo-random number
+     * @notice Not truly random - for demo purposes only
+     * @return Random number between 1-9
+     */
+
+    function _generateRandomNumbers() internal view returns (uint256){
+        return uint256(
+            keccak256(
+                block.timestamp,
+                block.prevrandao,
+                msg.sender,
+                registeredPlayers.length
+            )
+        ) % ( MAX_NUMBER - MIN_NUMBER + 1 ) + MIN_NUMBER;
+    }
+
+    /**
+     * @dev Check if prizes should be automatically distributed
+     * @return True if all players used all attempts
+     */
+
+    function _shouldAutoDistribute() internal view returns (bool){
+        if(registeredPlayers.length == 0) return false;
+
+        for(uint256 i = 0; i < registerdPlayers.length; i++){
+            if(players[registeredPlayers[i]].attempts < MAX_ATTEMPT ){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    
 }
