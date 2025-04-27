@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import "../src/SampleGame.sol"; // change SampleGame to LotteryGame
+import "../src/LotteryGame.sol"; // change SampleGame to LotteryGame
 
 contract SampleGameTest is
     Test // change SampleGame to LotteryGame

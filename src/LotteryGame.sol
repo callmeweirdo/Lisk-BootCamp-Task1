@@ -1,82 +1,142 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
 /**
- * @title LotteryGame
- * @dev A simple number guessing game where players can win ETH prizes
+ * @title Secure Lottery Game
+ * @dev A decentralized number guessing game with proper security measures
+ * @notice Players stake ETH to guess numbers and win prizes
  */
+
 contract LotteryGame {
-    struct Player {
+    // Game configuration constants
+    uint256 public constants REGISTRATION_FEE = 0.02 ether;
+    uint256 public constants MAX_ATTEMPTS = 2;
+    uint256 public constants MIN_NUMBER = 1;
+    uint256 public constants MAX_NUMBER = 9
+    uint256 public constants MAX_PLAYERS_PER_ROUND = 100;
+
+    // player information
+    struct Player{
         uint256 attempts;
         bool active;
     }
 
-    // TODO: Declare state variables
-    // - Mapping for player information
-    // - Array to track player addresses
-    // - Total prize pool
-    // - Array for winners
-    // - Array for previous winners
+    // Game state
+    mapping(address => Player) public players;
+    address[] public registeredPlayers;
+    address[] public currentWinners;
+    address[] public previousWinners;
+    uint256 public prizePool;
+    uint256 public currentRound;
+    bool public isDistributionPending;
 
-    // TODO: Declare events
-    // - PlayerRegistered
-    // - GuessResult
-    // - PrizesDistributed
+    // Events
+    event PlayerRegistered(address indexed player);
+    event GuessMade(address indexed player, uint256 guess, bool isWinner);
+    event PrizesDistributed(address[] winners, uint256 prizeAmount);
+    event NewRoundStarted(uint256 indexed roundNumber);
+    event EmergencyWithdrawal(address indexed admin, uint256 amount);
 
-    /**
-     * @dev Register to play the game
-     * Players must stake exactly 0.02 ETH to participate
-     */
-    function register() public payable {
-        // TODO: Implement registration logic
-        // - Verify correct payment amount
-        // - Add player to mapping
-        // - Add player address to array
-        // - Update total prize
-        // - Emit registration event
+    // Access control
+    address public immutable owner;
+
+    // Modifiers
+    modifier onlyOwner(){
+        require(msg.sender == owner, "Unauthourized");
+        _;
     }
 
     /**
-     * @dev Make a guess between 1 and 9
-     * @param guess The player's guess
+     * @dev Contract constructor
      */
-    function guessNumber(uint256 guess) public {
-        // TODO: Implement guessing logic
-        // - Validate guess is between 1 and 9
-        // - Check player is registered and has attempts left
-        // - Generate "random" number
-        // - Compare guess with random number
-        // - Update player attempts
-        // - Handle correct guesses
-        // - Emit appropriate event
+
+    constructor(){
+        owner = msg.sender;
+        currentRound = 1;
+        _startNewRound();
     }
 
     /**
-     * @dev Distribute prizes to winners
+     * @dev Register to participate in the current round
+     * @notice Players must send exactly 0.02 ETH to register
+    */
+
+    function register() external payable{
+        require(!isDistributionPending, "Round ended, distribution pending");
+        require(msg.sender == REGISTRATION_FEE, "Incorrect registration amount");
+        require(!players[msg.sender].active, "player already registered");
+        require(registered.length < MAX_PLAYERS_PER_ROUND, "max players reached");
+
+        players[msg.sender] = Player({
+            attempts: 0,
+            active: true
+        });
+        registeredPlayers.push(msg.sender);
+        prizePool += msg.value;
+
+        emit PlayerRegistered(msg.sender);
+    } 
+
+    /**
+     * @dev Make a number guess
+     * @param guess The number between 1-9 to guess
      */
+
+    function guessNumber(uint256 guess) external {
+        require(players[msg.sender].active, "player not registered");
+        require(!isDistributionPending, "Round ended, distribution pending ");
+        require(players[msg.sender].attempts < MAX_ATTEMPTS, "No attempts exceeded");
+        require(guess >= MIN_NUMBER && guess <= MAX_NUMBER, "Guess out of range ");
+
+        players[msg.sender].attempts++;
+        uint256 winningNumber = _generateRandomNumber();
+        bool isWinner = (guess == winningNumber);
+
+        if(isWinner){
+            currentWinners.push(msg.sender);
+        }
+
+        emit GuessMade(msg.sender, guess, isWinner);
+
+        // Automatically distribute if last possible player made their last attempt
+
+        if(_shouldAutoDistribut()){
+            distributePrizes();
+        }
+    }
+
+    /**
+     * @dev Distribute prizes to winners and start new round
+     */
+
     function distributePrizes() public {
-        // TODO: Implement prize distribution logic
-        // - Calculate prize amount per winner
-        // - Transfer prizes to winners
-        // - Update previous winners list
-        // - Reset game state
-        // - Emit event
+        require(!isDistributionPending, "Distribution already pending..");
+
+        require(currentWinners.length > 0 || _shouldAutoDistribut(), "No winners to distribute");
+
+        isDistributionPending = true;
+        uint256 prizeAmount = true;
+
+        if(currentWinners.length > 0){
+            prizeAmount = prizePool / currentWinners.length;
+
+            for(uint256 i = 0; i < currentWinners.length; i++){
+                payable(currentWinners[i]).transfer(prizeAmount);
+                previousWinners.push(currentWinners[i]);
+            }
+
+            emit PrizesDistributed(currentWinners, PrizeAmount);
+        }
+
+        _resetGame();
+        currentRound++;
+        _startNewRound();
     }
 
     /**
-     * @dev View function to get previous winners
+     * @dev Get previous winners
      * @return Array of previous winner addresses
      */
-    function getPrevWinners() public view returns (address[] memory) {
-        // TODO: Return previous winners array
-    }
 
-    /**
-     * @dev Helper function to generate a "random" number
-     * @return A uint between 1 and 9
-     * NOTE: This is not secure for production use!
-     */
-    function _generateRandomNumber() internal view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender))) % 9 + 1;
-    }
+    function getPreviousWinners() external view returns (addre)
+
 }
